@@ -1,0 +1,16 @@
+{
+  "name": "SDLC Report Card",
+  "slug": "sdlc-report-card",
+  "description": "Team performance metrics evaluated against delivery excellence thresholds",
+  "icon": "award",
+  "order": 10,
+  "client": {
+    "entry": "./client/index.js",
+    "navItems": [
+      { "id": "main", "label": "SDLC Report Card", "icon": "BarChart3", "default": true }
+    ]
+  },
+  "server": {
+    "entry": "./server/index.js"
+  }
+}
