@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const {
   checkSustainedQuarters,
@@ -18,6 +18,12 @@ describe('parseQuarter', () => {
     expect(() => parseQuarter('2026-3')).toThrow('Invalid quarter format')
     expect(() => parseQuarter('Q3-2026')).toThrow('Invalid quarter format')
     expect(() => parseQuarter('2026Q3')).toThrow('Invalid quarter format')
+  })
+
+  it('throws on invalid quarter values', () => {
+    expect(() => parseQuarter('2026-Q0')).toThrow('Invalid quarter value')
+    expect(() => parseQuarter('2026-Q5')).toThrow('Invalid quarter value')
+    expect(() => parseQuarter('2026-Q9')).toThrow('Invalid quarter value')
   })
 })
 
@@ -43,6 +49,16 @@ describe('getCurrentQuarter', () => {
 
 describe('checkSustainedQuarters', () => {
   const band = { min: 80, max: 100 }
+
+  beforeEach(() => {
+    // Pin the clock to 2026-10-15 (Q4 2026)
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-15'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   describe('basic sustained check', () => {
     it('returns sustained when enough consecutive quarters meet threshold', () => {
@@ -236,9 +252,10 @@ describe('checkSustainedQuarters', () => {
     })
 
     it('handles requireQuarters = 5', () => {
+      // History has only 4 distinct quarters, so 5 consecutive quarters not possible
       const result = checkSustainedQuarters(91, band, history, 5)
-      expect(result.isSustained).toBe(true)
-      expect(result.consecutiveQuarters).toBe(5)
+      expect(result.isSustained).toBe(false)
+      expect(result.consecutiveQuarters).toBe(4)
     })
   })
 

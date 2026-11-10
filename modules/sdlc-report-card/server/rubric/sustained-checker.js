@@ -45,11 +45,17 @@
  * @param {number} requiredQuarters - Number of consecutive quarters required (default: 3)
  * @returns {Object} { isSustained: boolean, consecutiveQuarters: number, details: string }
  */
-function checkSustainedQuarters(currentValue, band, history, requiredQuarters = 3) {
+function checkSustainedQuarters(currentValue, band, history, requiredQuarters = 3, currentQuarter = null) {
+  // Use provided currentQuarter or get the current one
+  const quarter = currentQuarter || getCurrentQuarter()
+
+  // Filter out any existing observations for the current quarter to avoid duplicates
+  const filteredHistory = history.filter(obs => obs.quarter !== quarter)
+
   // Include current value in the check
   const allObservations = [
-    ...history,
-    { value: currentValue, quarter: getCurrentQuarter() }
+    ...filteredHistory,
+    { value: currentValue, quarter }
   ]
 
   // Sort by quarter (most recent first)
@@ -163,7 +169,15 @@ function parseQuarter(quarterStr) {
   if (!match) {
     throw new Error(`Invalid quarter format: ${quarterStr}. Expected YYYY-QN`)
   }
-  return [parseInt(match[1], 10), parseInt(match[2], 10)]
+  const year = parseInt(match[1], 10)
+  const quarter = parseInt(match[2], 10)
+
+  // Validate quarter is between 1 and 4
+  if (quarter < 1 || quarter > 4) {
+    throw new Error(`Invalid quarter value: Q${quarter}. Expected Q1-Q4`)
+  }
+
+  return [year, quarter]
 }
 
 module.exports = {

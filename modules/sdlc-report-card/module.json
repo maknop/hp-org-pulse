@@ -4,6 +4,7 @@
   "description": "Team performance metrics evaluated against delivery excellence thresholds",
   "icon": "award",
   "order": 10,
+  "defaultEnabled": false,
   "client": {
     "entry": "./client/index.js",
     "navItems": [

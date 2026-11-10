@@ -33,7 +33,7 @@ function evaluateMetric(value, threshold, options = {}) {
   const { cohort, crossMetrics = {}, history = [] } = options
 
   // Handle not-yet-instrumented case
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return { tier: TIERS.NOT_INSTRUMENTED }
   }
 
@@ -71,15 +71,28 @@ function evaluateOrderedBands(value, threshold, history) {
   // Find matching band
   let matchedTier = null
   let matchedBand = null
+  const matchedBands = []
 
   for (const band of bands) {
     if (isInBand(value, band)) {
-      if (matchedTier) {
-        // Multiple bands match - known defect
-        warnings.push(`Value ${value} matches multiple bands: ${matchedTier} and ${band.tier}`)
-      }
+      matchedBands.push(band)
       matchedTier = band.tier
       matchedBand = band
+    }
+  }
+
+  // Warn about overlaps, but not for shared boundaries
+  if (matchedBands.length > 1) {
+    // Check if the matched bands share only a boundary value
+    const isSharedBoundary = matchedBands.every((b1, i) =>
+      matchedBands.slice(i + 1).every(b2 =>
+        (b1.max === value && b2.min === value) ||
+        (b1.min === value && b2.max === value)
+      )
+    )
+
+    if (!isSharedBoundary) {
+      warnings.push(`Value ${value} matches multiple bands: ${matchedBands.map(b => b.tier).join(', ')}`)
     }
   }
 
@@ -128,14 +141,32 @@ function evaluateTwoSided(value, threshold, _history) {
 
   let matchedTier = null
   let matchedReason = null
+  const matchedBands = []
 
   for (const band of bands) {
     if (isInBand(value, band)) {
-      if (matchedTier && matchedTier !== band.tier) {
-        warnings.push(`Value ${value} matches multiple conflicting tiers`)
-      }
+      matchedBands.push(band)
       matchedTier = band.tier
       matchedReason = band.reason
+    }
+  }
+
+  // Warn about overlaps, but not for shared boundaries
+  if (matchedBands.length > 1) {
+    const conflictingTiers = matchedBands.some((b1, i) =>
+      matchedBands.slice(i + 1).some(b2 => b1.tier !== b2.tier)
+    )
+
+    // Check if the matched bands share only a boundary value
+    const isSharedBoundary = matchedBands.every((b1, i) =>
+      matchedBands.slice(i + 1).every(b2 =>
+        (b1.max === value && b2.min === value) ||
+        (b1.min === value && b2.max === value)
+      )
+    )
+
+    if (conflictingTiers && !isSharedBoundary) {
+      warnings.push(`Value ${value} matches multiple conflicting tiers`)
     }
   }
 
@@ -168,7 +199,11 @@ function evaluatePerCohort(value, threshold, cohort, history) {
     }
   }
 
-  const cohortThreshold = threshold.cohorts[cohort]
+  // Use hasOwnProperty to avoid prototype pollution
+  const cohortThreshold = Object.prototype.hasOwnProperty.call(threshold.cohorts, cohort)
+    ? threshold.cohorts[cohort]
+    : undefined
+
   if (!cohortThreshold) {
     return {
       tier: TIERS.NOT_INSTRUMENTED,
@@ -234,6 +269,12 @@ function evaluateCompound(value, threshold, crossMetrics, history) {
           )
         }
       }
+    } else if (condition !== undefined) {
+      // Unknown condition type - fail fast
+      throw new Error(`Unknown requirement condition: ${condition}`)
+    } else {
+      // No min, max, or recognized condition
+      throw new Error(`Invalid requirement: must have min/max or recognized condition`)
     }
   }
 
